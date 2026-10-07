@@ -5,11 +5,18 @@ import customtkinter as ctk
 
 from styles import COLORS, FONTS
 
-from .base_popup import BasePopup
+from .base_popup import BasePopup, DATE_VALIDATION_MESSAGE, validate_date
 from .serial_input_popup import SerialInputPopup
 
 
 class CompletePopup(BasePopup):
+    @staticmethod
+    def _get_serial_status_color(saved_count, qty):
+        try:
+            return COLORS["success"] if saved_count >= int(qty) else COLORS["warning"]
+        except (TypeError, ValueError, OverflowError):
+            return COLORS["warning"]
+
     def __init__(self, parent, data_manager, refresh_callback, req_no):
         self.req_no = req_no
         self.target_rows = data_manager.df[data_manager.df["번호"].astype(str) == str(req_no)]
@@ -118,7 +125,12 @@ class CompletePopup(BasePopup):
             # 현재 입력된 개수 확인
             saved_count = len(serial_records)
             
-            status_lbl = ctk.CTkLabel(right, text=f"입력됨: {saved_count}/{qty}", font=FONTS["small"], text_color=COLORS["text_dim"])
+            status_lbl = ctk.CTkLabel(
+                right,
+                text=f"입력됨: {saved_count}/{qty}",
+                font=FONTS["small"],
+                text_color=self._get_serial_status_color(saved_count, qty),
+            )
             status_lbl.pack(side="left", padx=10)
             
             # [수정] open_serial_popup에 serial_lbl 전달
@@ -150,10 +162,7 @@ class CompletePopup(BasePopup):
             # 2. 상태 라벨 업데이트 (입력 개수)
             current_len = len(saved_records)
             status_label.configure(text=f"입력됨: {current_len}/{qty}")
-            if current_len >= int(qty):
-                status_label.configure(text_color=COLORS["success"])
-            else:
-                status_label.configure(text_color=COLORS["warning"])
+            status_label.configure(text_color=self._get_serial_status_color(current_len, qty))
                 
             # 3. [신규] 시리얼 번호 라벨 즉시 업데이트
             if serial_label:
@@ -172,11 +181,16 @@ class CompletePopup(BasePopup):
         SerialInputPopup(self, self.dm, self.req_no, model, qty, on_save_callback, item_index)
 
     def save_all(self):
+        out_date = validate_date(self.e_date.get())
+        if out_date is None:
+            messagebox.showwarning("입력 오류", DATE_VALIDATION_MESSAGE, parent=self)
+            return
+
         answer = messagebox.askyesno("완료 처리", "모든 데이터를 저장하고 '생산 완료' 처리하시겠습니까?", parent=self)
         
         if answer:
             try:
-                success, msg = self.dm.finalize_production(self.req_no, self.e_date.get())
+                success, msg = self.dm.finalize_production(self.req_no, out_date)
                 
                 if success:
                     messagebox.showinfo("성공", "생산 완료 처리되었습니다.", parent=self)

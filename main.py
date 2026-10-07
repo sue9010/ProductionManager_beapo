@@ -45,6 +45,7 @@ class COXProductionManager(BaseApp):
 
         self.current_view = None
         self.refresh_timer = None # [수정] 타이머 ID 저장을 위한 변수
+        self.is_closing = False
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -62,6 +63,9 @@ class COXProductionManager(BaseApp):
 
     # [신규] 외부 데이터 변경 감지 루프
     def start_auto_refresh_loop(self):
+        if self.is_closing:
+            return
+
         try:
             # 창이 이미 닫혔다면 루프 중단
             if not self.winfo_exists():
@@ -77,7 +81,8 @@ class COXProductionManager(BaseApp):
             print(f"Auto-refresh error: {e}")
             
         # [핵심 수정] 5000ms(5초) 후에 다시 실행하며 타이머 ID 저장
-        self.refresh_timer = self.after(5000, self.start_auto_refresh_loop)
+        if not self.is_closing:
+            self.refresh_timer = self.after(5000, self.start_auto_refresh_loop)
 
     def create_sidebar(self):
         self.sidebar_frame = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=COLORS["bg_dark"])
@@ -185,13 +190,29 @@ class COXProductionManager(BaseApp):
                     self.view_table.close_dropdown()
 
     def on_closing(self):
+        self.is_closing = True
+
         # [핵심 수정] 종료 시 예약된 자동 새로고침 타이머 취소
         if self.refresh_timer:
-            self.after_cancel(self.refresh_timer)
+            try:
+                self.after_cancel(self.refresh_timer)
+            except tk.TclError:
+                pass
             self.refresh_timer = None
-            
-        self.quit()    
-        self.destroy() 
+
+        # CustomTkinter의 화면 모드/DPI 감시 콜백을 포함한 남은 after 작업을 정리한다.
+        try:
+            pending_callbacks = self.tk.call("after", "info")
+        except tk.TclError:
+            pending_callbacks = ()
+
+        for callback_id in pending_callbacks:
+            try:
+                self.tk.call("after", "cancel", callback_id)
+            except tk.TclError:
+                pass
+
+        self.destroy()
 
 if __name__ == "__main__":
     app = COXProductionManager()

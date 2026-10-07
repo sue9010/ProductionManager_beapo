@@ -3,9 +3,12 @@ from datetime import datetime
 from tkinter import ttk
 
 import customtkinter as ctk
-import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib import colormaps
+from matplotlib.artist import setp
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+from matplotlib.patches import Circle
 
 from config import Config
 from styles import COLORS, FONT_FAMILY, FONTS, get_color_str
@@ -276,7 +279,8 @@ class DashboardView(ctk.CTkFrame):
         bg_color = get_color_str("bg_medium")
         text_color = get_color_str("text")
 
-        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)
+        fig = Figure(figsize=(5, 4), dpi=100)
+        ax = fig.add_subplot(111)
         fig.patch.set_facecolor(bg_color)
         ax.set_facecolor(bg_color)
 
@@ -290,7 +294,7 @@ class DashboardView(ctk.CTkFrame):
             "중지": get_color_str("danger"),
         }
 
-        default_colors = plt.cm.Pastel1.colors
+        default_colors = colormaps["Pastel1"].colors
         pie_colors = [color_map.get(label, default_colors[i % len(default_colors)]) for i, label in enumerate(labels)]
 
         wedges, texts, autotexts = ax.pie(
@@ -302,14 +306,14 @@ class DashboardView(ctk.CTkFrame):
             textprops={"color": text_color, "fontfamily": FONT_FAMILY},
         )
 
-        plt.setp(texts, size=10, weight="bold")
-        plt.setp(autotexts, size=9, weight="bold", color=text_color)
+        setp(texts, size=10, weight="bold")
+        setp(autotexts, size=9, weight="bold", color=text_color)
 
-        centre_circle = plt.Circle((0, 0), 0.70, fc=bg_color)
+        centre_circle = Circle((0, 0), 0.70, fc=bg_color)
         fig.gca().add_artist(centre_circle)
 
         ax.axis("equal")
-        plt.tight_layout()
+        fig.tight_layout()
 
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_area)
         self.canvas.draw()

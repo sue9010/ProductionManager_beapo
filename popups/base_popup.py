@@ -16,6 +16,27 @@ from styles import COLORS, FONT_FAMILY, FONTS
 from popups.memo_popup import MemoSidebar
 
 
+DATE_VALIDATION_MESSAGE = (
+    "날짜 형식을 확인해주세요.\n"
+    "YYYY-MM-DD 형식의 실제 날짜를 입력해주세요.\n"
+    "예: 2026-10-07"
+)
+
+
+def validate_date(date_text):
+    """Return a stripped YYYY-MM-DD date, or None when it is invalid."""
+    date_text = str(date_text).strip()
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date_text):
+        return None
+
+    try:
+        datetime.strptime(date_text, "%Y-%m-%d")
+    except ValueError:
+        return None
+
+    return date_text
+
+
 class BasePopup(ctk.CTkToplevel):
     def __init__(self, parent, data_manager, refresh_callback, title="Popup", geometry="800x600", req_no=None):
         super().__init__(parent)
@@ -233,8 +254,10 @@ class BasePopup(ctk.CTkToplevel):
         entry.insert(0, current_date if current_date != '-' else datetime.now().strftime("%Y-%m-%d"))
         
         def confirm():
-            new_date = entry.get()
-            if not new_date: return
+            new_date = validate_date(entry.get())
+            if new_date is None:
+                messagebox.showwarning("입력 오류", DATE_VALIDATION_MESSAGE, parent=win)
+                return
             
             success, msg = self.dm.update_expected_date(req_no, new_date)
             if success:
@@ -317,9 +340,9 @@ class BasePopup(ctk.CTkToplevel):
                              wraplength=420, justify="left", anchor="w").pack(fill="x")
 
         def confirm():
-            new_date = entry.get()
-            if not new_date:
-                messagebox.showwarning("입력 오류", "날짜를 입력해주세요.", parent=win)
+            new_date = validate_date(entry.get())
+            if new_date is None:
+                messagebox.showwarning("입력 오류", DATE_VALIDATION_MESSAGE, parent=win)
                 return
 
             success, msg = self.dm.update_status_resume(req_no, new_date)

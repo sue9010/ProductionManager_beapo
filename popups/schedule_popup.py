@@ -5,7 +5,7 @@ import customtkinter as ctk
 
 from styles import COLORS, FONTS
 
-from .base_popup import BasePopup
+from .base_popup import BasePopup, DATE_VALIDATION_MESSAGE, validate_date
 
 
 class SchedulePopup(BasePopup):
@@ -141,9 +141,9 @@ class SchedulePopup(BasePopup):
                 messagebox.showerror("삭제 실패", msg, parent=self)
 
     def confirm(self):
-        date_str = self.date_entry.get()
-        if len(date_str) != 10:
-            messagebox.showwarning("경고", "날짜 형식을 확인해주세요 (yyyy-mm-dd)", parent=self)
+        date_str = validate_date(self.date_entry.get())
+        if date_str is None:
+            messagebox.showwarning("경고", DATE_VALIDATION_MESSAGE, parent=self)
             return
         
         try:
