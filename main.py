@@ -14,10 +14,7 @@ from config import Config
 from data_manager import DataManager
 from popup_manager import PopupManager
 from styles import COLORS, FONT_FAMILY, FONTS
-from views.calendar_view import CalendarView
 from views.dashboard import DashboardView
-from views.gantt_view import GanttView
-from views.kanban_view import KanbanView
 from views.table_view import TableView
 
 if DND_AVAILABLE:
@@ -98,9 +95,6 @@ class COXProductionManager(BaseApp):
         btn_data = [
             ("🏠  대시보드", self.show_dashboard_view),
             ("📊  테이블 뷰", self.show_table_view),
-            ("📅  생산 달력", self.show_calendar_view),
-            ("📋  칸반 보드", self.show_kanban_view),
-            ("📈  간트 차트", self.show_gantt_view),
         ]
 
         for text, cmd in btn_data:
@@ -122,9 +116,6 @@ class COXProductionManager(BaseApp):
         
         self.view_dashboard = DashboardView(self.content_frame, self.dm, self.pm)
         self.view_table = TableView(self.content_frame, self.dm, self.pm)
-        self.view_calendar = CalendarView(self.content_frame, self.dm, self.pm)
-        self.view_kanban = KanbanView(self.content_frame, self.dm, self.pm)
-        self.view_gantt = GanttView(self.content_frame, self.dm, self.pm)
 
     def switch_view(self, view_name, view_instance):
         if hasattr(self, 'view_table') and self.view_table.is_dropdown_open:
@@ -146,9 +137,6 @@ class COXProductionManager(BaseApp):
 
     def show_dashboard_view(self): self.switch_view("🏠  대시보드", self.view_dashboard)
     def show_table_view(self): self.switch_view("📊  테이블 뷰", self.view_table)
-    def show_calendar_view(self): self.switch_view("📅  생산 달력", self.view_calendar)
-    def show_kanban_view(self): self.switch_view("📋  칸반 보드", self.view_kanban)
-    def show_gantt_view(self): self.switch_view("📈  간트 차트", self.view_gantt)
 
     def reload_all_data(self):
         success, msg = self.dm.load_data()
