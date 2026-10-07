@@ -391,7 +391,6 @@ class MemoContextMenu(ctk.CTkToplevel):
         self.overrideredirect(True)
         # [수정] 부모 창 위에 뜨도록 transient 설정
         self.transient(parent)
-        self.attributes("-topmost", True)
         
         # 배경 및 테두리 설정
         self.frame = ctk.CTkFrame(self, fg_color=COLORS["bg_dark"])
@@ -449,4 +448,3 @@ class MemoContextMenu(ctk.CTkToplevel):
         except:
             pass
         super().destroy()
-

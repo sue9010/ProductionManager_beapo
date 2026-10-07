@@ -102,18 +102,14 @@ class SettingsPopup(BasePopup):
         ctk.set_appearance_mode(new_theme)
 
     def browse_excel(self):
-        self.attributes("-topmost", False)
         file_path = filedialog.askopenfilename(parent=self, filetypes=[("Excel files", "*.xlsx;*.xls")])
-        self.attributes("-topmost", True)
         self.lift()
         if file_path:
             self.path_entry.delete(0, "end")
             self.path_entry.insert(0, file_path)
 
     def browse_folder(self):
-        self.attributes("-topmost", False)
         folder_path = filedialog.askdirectory(parent=self)
-        self.attributes("-topmost", True)
         self.lift()
         if folder_path:
             self.attach_path_entry.delete(0, "end")
@@ -122,9 +118,7 @@ class SettingsPopup(BasePopup):
     def toggle_dev_mode(self):
         if self.dev_var.get():
             # 켜려고 할 때: 비밀번호 확인
-            self.attributes("-topmost", False)
             pwd = simpledialog.askstring("관리자 인증", "관리자 비밀번호를 입력하세요:", show="*", parent=self)
-            self.attributes("-topmost", True)
             
             if pwd == Config.DEV_PASSWORD:
                 self.dm.set_dev_mode(True)
@@ -147,24 +141,20 @@ class SettingsPopup(BasePopup):
             self.dev_tools_frame.pack_forget()
 
     def do_backup(self):
-        self.attributes("-topmost", False)
         if messagebox.askyesno("백업", "현재 데이터의 백업본을 생성하시겠습니까?", parent=self):
             success, msg = self.dm.create_backup()
             if success:
                 messagebox.showinfo("성공", msg, parent=self)
             else:
                 messagebox.showerror("실패", msg, parent=self)
-        self.attributes("-topmost", True)
 
     def do_clean_logs(self):
-        self.attributes("-topmost", False)
         if messagebox.askyesno("로그 정리", "3개월이 지난 로그 데이터를 삭제하여 파일 크기를 줄이시겠습니까?\n이 작업은 되돌릴 수 없습니다.", parent=self):
             success, msg = self.dm.clean_old_logs()
             if success:
                 messagebox.showinfo("성공", msg, parent=self)
             else:
                 messagebox.showerror("실패", msg, parent=self)
-        self.attributes("-topmost", True)
 
     def save(self):
         new_path = self.path_entry.get()
@@ -175,17 +165,12 @@ class SettingsPopup(BasePopup):
             try:
                 self.dm.save_config(new_path, new_theme, new_attachment_dir)
                 
-                self.attributes("-topmost", False)
                 messagebox.showinfo("설정 저장", "설정이 저장되었습니다.", parent=self)
                 
                 self.destroy()
                 self.dm.load_config() 
                 self.refresh_callback()
             except Exception as e:
-                self.attributes("-topmost", False)
                 messagebox.showerror("오류", f"설정 저장 실패: {e}", parent=self)
-                self.attributes("-topmost", True)
         else:
-            self.attributes("-topmost", False)
             messagebox.showwarning("경고", "엑셀 파일 경로를 입력해주세요.", parent=self)
-            self.attributes("-topmost", True)

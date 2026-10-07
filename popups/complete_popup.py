@@ -86,7 +86,7 @@ class CompletePopup(BasePopup):
         scroll_frame = ctk.CTkScrollableFrame(parent, height=250, corner_radius=10)
         scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
 
-        for idx, row in self.target_rows.iterrows():
+        for item_index, (idx, row) in enumerate(self.target_rows.iterrows(), start=1):
             model = row.get('모델명')
             detail = row.get('상세')
             qty = row.get('수량', 0)
@@ -101,8 +101,8 @@ class CompletePopup(BasePopup):
             ctk.CTkLabel(left, text=f"수량: {qty}개", font=FONTS["main"], text_color=COLORS["warning"]).pack(anchor="w")
 
             # [신규] 시리얼 번호 표시 라벨 생성
-            serials = str(row.get('시리얼번호', '')).strip()
-            if serials == '-' or serials == 'nan': serials = ""
+            serial_records = self.dm.get_serial_list(self.req_no, model, item_index)
+            serials = ", ".join(str(item["시리얼번호"]) for item in serial_records)
             
             serial_lbl = ctk.CTkLabel(left, text=f"S/N: {serials}" if serials else "", 
                                       font=FONTS["small"], text_color=COLORS["text_dim"], 
@@ -116,14 +116,14 @@ class CompletePopup(BasePopup):
             right.pack(side="right", padx=10, pady=10)
             
             # 현재 입력된 개수 확인
-            saved_count = len(self.dm.get_serial_list(self.req_no, model))
+            saved_count = len(serial_records)
             
             status_lbl = ctk.CTkLabel(right, text=f"입력됨: {saved_count}/{qty}", font=FONTS["small"], text_color=COLORS["text_dim"])
             status_lbl.pack(side="left", padx=10)
             
             # [수정] open_serial_popup에 serial_lbl 전달
             btn = ctk.CTkButton(right, text="상세 입력", width=100, 
-                                command=lambda m=model, q=qty, l=status_lbl, sl=serial_lbl: self.open_serial_popup(m, q, l, sl))
+                                command=lambda m=model, q=qty, l=status_lbl, sl=serial_lbl, i=item_index: self.open_serial_popup(m, q, l, sl, i))
             btn.pack(side="left")
 
         # --- 하단 공통 정보 ---
@@ -139,17 +139,16 @@ class CompletePopup(BasePopup):
         ctk.CTkButton(footer, text="취소", command=self.destroy, fg_color=COLORS["bg_light"], hover_color=COLORS["bg_light_hover"], width=80).pack(side="right", padx=(0, 5))
 
     def _safe_open_pdf(self, path):
-        self.attributes("-topmost", False)
         self._open_pdf_file(path)
-        self.attributes("-topmost", True)
 
-    def open_serial_popup(self, model, qty, status_label, serial_label=None):
+    def open_serial_popup(self, model, qty, status_label, serial_label=None, item_index=None):
         def on_save_callback(model_name, data_list):
             # 1. 데이터 업데이트
-            self.dm.update_serial_list(self.req_no, model_name, data_list)
+            self.dm.update_serial_list(self.req_no, model_name, data_list, item_index)
+            saved_records = self.dm.get_serial_list(self.req_no, model_name, item_index)
             
             # 2. 상태 라벨 업데이트 (입력 개수)
-            current_len = len(data_list)
+            current_len = len(saved_records)
             status_label.configure(text=f"입력됨: {current_len}/{qty}")
             if current_len >= int(qty):
                 status_label.configure(text_color=COLORS["success"])
@@ -159,8 +158,7 @@ class CompletePopup(BasePopup):
             # 3. [신규] 시리얼 번호 라벨 즉시 업데이트
             if serial_label:
                 # 입력된 데이터에서 시리얼 번호만 추출하여 문자열 생성
-                new_serials = [str(item.get("시리얼번호", "")).strip() for item in data_list 
-                               if item.get("시리얼번호") and str(item.get("시리얼번호")).strip() != ""]
+                new_serials = [str(item["시리얼번호"]) for item in saved_records]
                 joined_text = ", ".join(new_serials)
                 
                 if joined_text:
@@ -171,28 +169,21 @@ class CompletePopup(BasePopup):
                     serial_label.configure(text="")
                     serial_label.pack_forget()
 
-        SerialInputPopup(self, self.dm, self.req_no, model, qty, on_save_callback)
+        SerialInputPopup(self, self.dm, self.req_no, model, qty, on_save_callback, item_index)
 
     def save_all(self):
-        self.attributes("-topmost", False)
         answer = messagebox.askyesno("완료 처리", "모든 데이터를 저장하고 '생산 완료' 처리하시겠습니까?", parent=self)
-        self.attributes("-topmost", True)
         
         if answer:
             try:
                 success, msg = self.dm.finalize_production(self.req_no, self.e_date.get())
                 
                 if success:
-                    self.attributes("-topmost", False)
                     messagebox.showinfo("성공", "생산 완료 처리되었습니다.", parent=self)
                     self.destroy()
                     self.refresh_callback()
                 else:
-                    self.attributes("-topmost", False)
                     messagebox.showerror("실패", msg, parent=self)
-                    self.attributes("-topmost", True)
                     
             except Exception as e:
-                self.attributes("-topmost", False)
                 messagebox.showerror("오류", f"저장 중 오류: {e}", parent=self)
-                self.attributes("-topmost", True)

@@ -12,6 +12,24 @@ from utils.slack_sender import SlackSender
 from memo_manager import MemoManager
 
 
+PLACEHOLDER_VALUES = {"", "-", "nan", "none", "nat", "<na>"}
+
+
+def clean_placeholder_value(value):
+    """Return user-entered text, treating Excel/pandas placeholders as empty."""
+    if pd.isna(value):
+        return ""
+
+    text = str(value).strip()
+    if text.casefold() in PLACEHOLDER_VALUES:
+        return ""
+    return text
+
+
+def is_valid_serial(value):
+    return bool(clean_placeholder_value(value))
+
+
 class DataManager:
     def __init__(self):
         # [Fix] Initialize with columns to avoid KeyError on empty access
@@ -446,33 +464,116 @@ class DataManager:
             return False, "데이터를 찾을 수 없습니다."
         return self._execute_transaction(logic)
 
-    def get_serial_list(self, req_no, model_name):
+    def _is_first_matching_item(self, req_no, model_name, item_index):
+        """Return whether item_index is the first matching model in a request."""
+        request_rows = self.df[self.df["번호"].astype(str) == str(req_no)]
+        matching_positions = [
+            position
+            for position, (_, row) in enumerate(request_rows.iterrows(), start=1)
+            if row.get("모델명") == model_name
+        ]
+        return bool(matching_positions) and item_index == matching_positions[0]
+
+    def get_serial_list(self, req_no, model_name, item_index=None):
         if self.serial_df.empty: return []
         mask = (self.serial_df["요청번호"].astype(str) == str(req_no)) & (self.serial_df["모델명"] == model_name)
-        return self.serial_df[mask].to_dict('records')
 
-    def update_serial_list(self, req_no, model_name, new_data_list):
+        if item_index is not None:
+            if "품목순번" in self.serial_df.columns:
+                item_numbers = pd.to_numeric(self.serial_df["품목순번"], errors="coerce")
+                indexed_mask = item_numbers == int(item_index)
+                legacy_mask = item_numbers.isna()
+                mask &= indexed_mask | (
+                    legacy_mask
+                    & self._is_first_matching_item(req_no, model_name, item_index)
+                )
+            elif not self._is_first_matching_item(req_no, model_name, item_index):
+                return []
+
+        records = [
+            item for item in self.serial_df[mask].to_dict('records')
+            if is_valid_serial(item.get("시리얼번호"))
+        ]
+
+        def sequence_key(item):
+            try:
+                return int(item.get("순번"))
+            except (TypeError, ValueError):
+                return float("inf")
+
+        return sorted(records, key=sequence_key)
+
+    def update_serial_list(self, req_no, model_name, new_data_list, item_index=None):
         def logic(dfs):
             # 1. 기존 데이터 삭제
             mask = (dfs["serial"]["요청번호"].astype(str) == str(req_no)) & (dfs["serial"]["모델명"] == model_name)
+
+            if item_index is not None:
+                if "품목순번" not in dfs["serial"].columns:
+                    dfs["serial"]["품목순번"] = ""
+                item_numbers = pd.to_numeric(dfs["serial"]["품목순번"], errors="coerce")
+                indexed_mask = item_numbers == int(item_index)
+                legacy_mask = item_numbers.isna()
+                mask &= indexed_mask | (
+                    legacy_mask
+                    & self._is_first_matching_item(req_no, model_name, item_index)
+                )
+
             dfs["serial"] = dfs["serial"][~mask]
             
-            # 2. 새 데이터 추가
-            if new_data_list:
-                new_df = pd.DataFrame(new_data_list)
+            # 2. 실제 시리얼번호가 입력된 행만 추가
+            valid_data_list = []
+            for item in new_data_list:
+                serial_no = clean_placeholder_value(item.get("시리얼번호"))
+                if not serial_no:
+                    continue
+
+                cleaned_item = dict(item)
+                cleaned_item["시리얼번호"] = serial_no
+                cleaned_item["렌즈업체"] = clean_placeholder_value(item.get("렌즈업체"))
+                cleaned_item["비고"] = clean_placeholder_value(item.get("비고"))
+                valid_data_list.append(cleaned_item)
+
+            valid_data_list.sort(key=lambda item: sequence_key(item))
+
+            if valid_data_list:
+                new_df = pd.DataFrame(valid_data_list)
                 new_df["요청번호"] = str(req_no)
                 new_df["모델명"] = model_name
+                if item_index is not None:
+                    new_df["품목순번"] = item_index
                 # 컬럼 순서 보장
                 for col in Config.SERIAL_COLUMNS:
                     if col not in new_df.columns:
                         new_df[col] = ""
                 dfs["serial"] = pd.concat([dfs["serial"], new_df], ignore_index=True)
             
-            # 3. 메인 데이터프레임에 시리얼 번호 요약 업데이트 (선택 사항)
-            # 여기서는 로직을 단순화하여 시리얼 번호만 모아서 메인 DF에 업데이트할 수도 있음
-            # 하지만 현재 요구사항에는 명시되지 않았으므로 생략하거나 필요시 추가
+            # 3. Data 시트의 시리얼번호는 검색용 요약/캐시로 동기화
+            serial_summary = ", ".join(
+                item["시리얼번호"] for item in valid_data_list
+            ) or "-"
+            request_indices = dfs["df"][
+                dfs["df"]["번호"].astype(str) == str(req_no)
+            ].index.tolist()
+            if item_index is not None and 1 <= item_index <= len(request_indices):
+                target_index = request_indices[item_index - 1]
+                if dfs["df"].loc[target_index, "모델명"] == model_name:
+                    dfs["df"].loc[target_index, "시리얼번호"] = serial_summary
+            else:
+                data_mask = (
+                    (dfs["df"]["번호"].astype(str) == str(req_no))
+                    & (dfs["df"]["모델명"] == model_name)
+                )
+                dfs["df"].loc[data_mask, "시리얼번호"] = serial_summary
             
             return True, ""
+
+        def sequence_key(item):
+            try:
+                return int(item.get("순번"))
+            except (TypeError, ValueError):
+                return float("inf")
+
         return self._execute_transaction(logic)
 
     def get_status_by_req_no(self, req_no):

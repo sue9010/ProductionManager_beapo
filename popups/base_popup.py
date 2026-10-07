@@ -36,7 +36,6 @@ class BasePopup(ctk.CTkToplevel):
         total_width = base_width + SIDEBAR_WIDTH if req_no else base_width
 
         self.center_window(total_width, base_height)
-        self.attributes("-topmost", True)
 
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True)
@@ -110,7 +109,6 @@ class BasePopup(ctk.CTkToplevel):
         # [수정] 팝업 최상위 설정 강화
         edit_win.transient(self)
         edit_win.grab_set()
-        edit_win.attributes("-topmost", True)
         
         container = ctk.CTkScrollableFrame(edit_win)
         container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -197,9 +195,6 @@ class BasePopup(ctk.CTkToplevel):
                 except:
                     self.dm.df.loc[idx, "수량"] = qty_val
             
-            edit_win.attributes("-topmost", False)
-            self.attributes("-topmost", False)
-            
             success, msg = self.dm.save_to_excel()
             if success:
                 messagebox.showinfo("성공", "데이터가 수정되었습니다.", parent=edit_win)
@@ -208,8 +203,6 @@ class BasePopup(ctk.CTkToplevel):
                     self.refresh_callback()
             else:
                 messagebox.showerror("실패", msg, parent=edit_win)
-                edit_win.attributes("-topmost", True)
-                self.attributes("-topmost", True)
 
         ctk.CTkButton(edit_win, text="저장", command=save_changes, fg_color=COLORS["primary"], width=100).pack(pady=20)
 
@@ -231,7 +224,6 @@ class BasePopup(ctk.CTkToplevel):
         win.geometry(f"{width}x{height}+{int(x)}+{int(y)}")
 
         win.lift()
-        win.attributes("-topmost", True)
         win.bind("<Escape>", lambda e: win.destroy())
 
         ctk.CTkLabel(win, text="새로운 출고예정일을 입력하세요.", font=FONTS["main"]).pack(pady=(20, 10))
@@ -293,7 +285,6 @@ class BasePopup(ctk.CTkToplevel):
         win.geometry(f"{width}x{height}+{int(x)}+{int(y)}")
 
         win.lift()
-        win.attributes("-topmost", True)
         win.bind("<Escape>", lambda e: win.destroy())
         
         ctk.CTkLabel(win, text=f"번호 [{req_no}] 생산을 재개합니다.\n새로운 출고예정일을 입력하세요.", font=FONTS["main_bold"]).pack(pady=(20, 10))
@@ -357,7 +348,6 @@ class BasePopup(ctk.CTkToplevel):
         # [수정] 팝업 최상위 설정 및 포커스 유지
         reason_window.transient(self)
         reason_window.grab_set()
-        reason_window.attributes("-topmost", True)
         
         ctk.CTkLabel(reason_window, text="대기 사유를 입력하세요.", font=FONTS["header"]).pack(pady=(20, 10))
         

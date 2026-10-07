@@ -80,7 +80,7 @@ class ViewPopup(BasePopup):
         scroll_frame = ctk.CTkScrollableFrame(parent, height=350, corner_radius=10)
         scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
-        for idx, row in self.target_rows.iterrows():
+        for item_index, (idx, row) in enumerate(self.target_rows.iterrows(), start=1):
             card = ctk.CTkFrame(scroll_frame, fg_color=COLORS["bg_medium"], corner_radius=6)
             card.pack(fill="x", pady=5, padx=5)
 
@@ -109,7 +109,9 @@ class ViewPopup(BasePopup):
                     corner_radius=4
                 ).pack(side="left", padx=(0, 10), ipadx=5)
 
-            serial_text = f"시리얼: {row.get('시리얼번호')}"
+            serial_records = self.dm.get_serial_list(self.req_no, model_name, item_index)
+            serials = ", ".join(str(item["시리얼번호"]) for item in serial_records)
+            serial_text = f"시리얼: {serials or '-'}"
             ctk.CTkLabel(
                 content, 
                 text=serial_text, 
@@ -132,7 +134,7 @@ class ViewPopup(BasePopup):
                 fg_color=COLORS["bg_light"], 
                 hover_color=COLORS["bg_light_hover"],
                 text_color=COLORS["text"],
-                command=lambda m=model_name, q=qty: self.open_serial_popup(m, q)
+                command=lambda m=model_name, q=qty, i=item_index: self.open_serial_popup(m, q, i)
             ).pack()
 
         footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -151,13 +153,10 @@ class ViewPopup(BasePopup):
             else:
                 messagebox.showerror("삭제 실패", msg, parent=self)
 
-    def open_serial_popup(self, model, qty):
+    def open_serial_popup(self, model, qty, item_index=None):
         popup = None
         def on_save_callback(model_name, data_list):
-            if popup: popup.attributes("-topmost", False)
-            self.attributes("-topmost", False)
-
-            self.dm.update_serial_list(self.req_no, model_name, data_list)
+            self.dm.update_serial_list(self.req_no, model_name, data_list, item_index)
             success, msg = self.dm.save_to_excel()
             
             target_parent = popup if popup else self
@@ -168,7 +167,5 @@ class ViewPopup(BasePopup):
                 self.destroy()
             else:
                 messagebox.showerror("저장 실패", msg, parent=target_parent)
-                if popup: popup.attributes("-topmost", True)
-                self.attributes("-topmost", True)
 
-        popup = SerialInputPopup(self, self.dm, self.req_no, model, qty, on_save_callback)
+        popup = SerialInputPopup(self, self.dm, self.req_no, model, qty, on_save_callback, item_index)

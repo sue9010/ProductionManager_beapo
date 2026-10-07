@@ -3,14 +3,16 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from styles import COLORS, FONTS
+from data_manager import clean_placeholder_value, is_valid_serial
 
 
 class SerialInputPopup(ctk.CTkToplevel):
-    def __init__(self, parent, data_manager, req_no, model_name, qty, callback_save):
+    def __init__(self, parent, data_manager, req_no, model_name, qty, callback_save, item_index=None):
         super().__init__(parent)
         self.dm = data_manager
         self.req_no = req_no
         self.model_name = model_name
+        self.item_index = item_index
         try:
             self.qty = int(qty)
         except:
@@ -23,7 +25,6 @@ class SerialInputPopup(ctk.CTkToplevel):
         # 팝업 설정
         self.transient(parent)
         self.grab_set()
-        self.attributes("-topmost", True)
         
         self.entry_rows = [] # {seq, sn_entry, lens_entry, note_entry}
         
@@ -95,7 +96,7 @@ class SerialInputPopup(ctk.CTkToplevel):
 
     def load_initial_data(self):
         # 기존 저장된 데이터 불러오기
-        saved_list = self.dm.get_serial_list(self.req_no, self.model_name)
+        saved_list = self.dm.get_serial_list(self.req_no, self.model_name, self.item_index)
         
         # 순번(seq)을 key로 하는 딕셔너리로 변환
         data_map = {}
@@ -110,9 +111,9 @@ class SerialInputPopup(ctk.CTkToplevel):
             seq = row["seq"]
             if seq in data_map:
                 data = data_map[seq]
-                row["sn"].insert(0, str(data.get("시리얼번호", "")))
-                row["lens"].insert(0, str(data.get("렌즈업체", "")))
-                row["note"].insert(0, str(data.get("비고", "")))
+                row["sn"].insert(0, clean_placeholder_value(data.get("시리얼번호", "")))
+                row["lens"].insert(0, clean_placeholder_value(data.get("렌즈업체", "")))
+                row["note"].insert(0, clean_placeholder_value(data.get("비고", "")))
 
     def open_autofill_dialog(self):
         # 자동 채우기 팝업
@@ -120,7 +121,6 @@ class SerialInputPopup(ctk.CTkToplevel):
         win.title("자동 채우기 (Hex)")
         win.geometry("300x250")
         win.transient(self)
-        win.attributes("-topmost", True)
         
         ctk.CTkLabel(win, text="시리얼 번호 규칙 (16진수)", font=FONTS["main_bold"]).pack(pady=(20,5))
         
@@ -167,10 +167,12 @@ class SerialInputPopup(ctk.CTkToplevel):
         result_list = []
         for row in self.entry_rows:
             sn_val = row["sn"].get().strip()
-            # 빈 값이라도 순번 유지를 위해 저장
-            
+            if not is_valid_serial(sn_val):
+                continue
+
             result_list.append({
                 "요청번호": str(self.req_no),
+                "품목순번": self.item_index,
                 "순번": row["seq"],
                 "모델명": self.model_name,
                 "시리얼번호": sn_val,
