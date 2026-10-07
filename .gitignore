@@ -1,0 +1,42 @@
+# Python venv
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Build & dist
+build/
+dist/
+*.spec
+
+# Logs & temp
+*.log
+output/
+tmp/
+
+# Excel files
+*.xlsx
+*.xlsm
+생산요청.xlsx
+
+# IDE / OS
+.vscode/
+.ideas/
+.idea/
+.DS_Store
+Thumbs.db
+.ideas/
+
+# Env / secrets
+.env
+*.env
+
+# Project specific
+Production Manager.spec
+
+backup/
+dist_local/

@@ -1,0 +1,72 @@
+폴더로 파일 생성
+pyinstaller --onedir --noconsole --noconfirm --icon=logo.ico main.py
+
+
+pyinstaller --onedir --noconsole --noconfirm --icon=logo.ico --distpath "\\cox_biz\생산-영업\ProductionManager_Update" main.py
+
+
+pyinstaller --onefile --noconsole --icon=logo.ico --name=ProductionManager launcher.py
+
+위 두개를 빌드 한 다음
+
+다시 dist 폴더 안에 Final_Build 라는 폴더를 만들고 
+아래처럼 구성
+Final_Build/
+├── ProductionManager.exe   (런처 파일)
+└── main/                   (폴더)
+    ├── _internal
+    ├── main.exe            (메인 프로그램)
+    ├── version.txt         (버전 파일)
+    └── config.json
+
+->>>업데이트 시 main 폴더만 다시 빌드해서 production manager_update 폴더에 덮어씌우기 하면 됨
+
+
+
+inno setup에서 다음 코드로 빌드
+
+; ProductionManager 설치 스크립트 v1.4.8
+
+[Setup]
+AppName=Production Manager
+AppVersion=1.4.8
+AppPublisher=COX
+PrivilegesRequired=lowest
+DefaultDirName={userpf}\COX\Production Manager
+DefaultGroupName=COX
+OutputDir=E:\Coding_practice\251124_ProductionManager\Output
+OutputBaseFilename=ProductionManager_1.4.8_Setup
+SetupIconFile=E:\Coding_practice\251124_ProductionManager\logo.ico
+Compression=lzma
+SolidCompression=yes
+ArchitecturesInstallIn64BitMode=x64
+
+[Languages]
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
+[Files]
+; Final_Build 폴더 전체 복사 (런처 + main 폴더가 통째로 들어감)
+Source: "E:\Coding_practice\251124_ProductionManager\dist\Final_Build\*"; \
+    DestDir: "{app}"; \
+    Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Icons]
+; 시작 메뉴 아이콘 -> 런처(ProductionManager.exe)를 실행하도록 연결
+Name: "{group}\Production Manager"; \
+    Filename: "{app}\ProductionManager.exe"; \
+    IconFilename: "{app}\ProductionManager.exe"
+
+; 바탕화면 아이콘 -> 런처(ProductionManager.exe)를 실행하도록 연결
+Name: "{userdesktop}\Production Manager"; \
+    Filename: "{app}\ProductionManager.exe"; \
+    IconFilename: "{app}\ProductionManager.exe"; \
+    Tasks: desktopicon
+
+[Run]
+; 설치 완료 후 실행 체크박스 -> 런처(ProductionManager.exe) 실행
+Filename: "{app}\ProductionManager.exe"; \
+    Description: "{cm:LaunchProgram,Production Manager}"; \
+    Flags: nowait postinstall skipifsilent
