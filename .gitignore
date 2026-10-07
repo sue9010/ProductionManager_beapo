@@ -19,9 +19,7 @@ output/
 tmp/
 
 # Excel files
-*.xlsx
 *.xlsm
-생산요청.xlsx
 
 # IDE / OS
 .vscode/
